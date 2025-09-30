@@ -5,7 +5,7 @@ services:
     build: .
     container_name: interview-app
     ports:
-      - "3000:3000"    # Avoid port 8080, Nest default is 3000
+      - "3000:3000"    # API endpoints + Socket.IO + Memory Leak Challenge UI
     depends_on:
       db:
         condition: service_healthy

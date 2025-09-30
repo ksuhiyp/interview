@@ -16,9 +16,11 @@ COPY package*.json ./
 RUN npm install --production
 # Copy built artifacts
 COPY --from=builder /usr/src/app/dist ./dist
+# Copy public directory for static files (memory leak challenge UI)
+COPY --from=builder /usr/src/app/public ./public
 
 # Expose application port (Nest defaults to 3000)
 EXPOSE 3000
 
-# Start the application
-CMD ["node", "dist/main.js"]
+# Start the application with garbage collection exposed for memory leak challenge
+CMD ["node", "--expose-gc", "--max-old-space-size=4096", "dist/main.js"]

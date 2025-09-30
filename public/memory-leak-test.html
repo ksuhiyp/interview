@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Leak Challenge - Socket.IO Client</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .challenge-section {
+            border-left: 4px solid #e74c3c;
+            padding-left: 15px;
+            margin: 20px 0;
+        }
+        .fix-section {
+            border-left: 4px solid #27ae60;
+            padding-left: 15px;
+            margin: 20px 0;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .danger {
+            background: #e74c3c;
+        }
+        .danger:hover {
+            background: #c0392b;
+        }
+        .success {
+            background: #27ae60;
+        }
+        .success:hover {
+            background: #229954;
+        }
+        #status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .connected {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+        .disconnected {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+        #memoryStats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid #dee2e6;
+        }
+        .memory-warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #ffeaa7;
+        }
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Memory Leak Challenge - Socket.IO</h1>
+        <p><strong>Objective:</strong> Identify and fix memory leaks in the Socket.IO server implementation.</p>
+        
+        <div id="status" class="disconnected">
+            Status: Disconnected
+        </div>
+
+        <div class="challenge-section">
+            <h2>🚨 Challenge Instructions</h2>
+            <p>The Socket.IO server contains multiple memory leak patterns. Your task is to:</p>
+            <ol>
+                <li>Connect multiple clients and observe memory growth</li>
+                <li>Identify the memory leak patterns in the server code</li>
+                <li>Fix the leaks by implementing proper cleanup</li>
+                <li>Verify your fixes by running the test scenarios</li>
+            </ol>
+            
+            <div class="memory-warning">
+                <strong>⚠️ Warning:</strong> Running these tests will intentionally create memory leaks. 
+                Monitor your system resources and restart the server periodically during testing.
+            </div>
+        </div>
+
+        <h3>Connection Controls</h3>
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+        <button id="multiConnectBtn">Create 10 Connections</button>
+        
+        <h3>Memory Leak Test Scenarios</h3>
+        <button id="subscribeBtn" disabled>Subscribe to Updates (Creates Intervals)</button>
+        <button id="heavyComputationBtn" disabled>Heavy Computation (Creates Closures)</button>
+        <button id="memoryStatsBtn" disabled>Get Memory Stats</button>
+        <button id="forceGcBtn" disabled class="success">Force Garbage Collection</button>
+
+        <h3>Server Memory Statistics</h3>
+        <div id="memoryStats">Not connected</div>
+
+        <h3>Event Log</h3>
+        <div id="log" class="log"></div>
+
+        <div class="fix-section">
+            <h2>✅ Fix Guidelines</h2>
+            <p>Common memory leak patterns to look for and fix:</p>
+            <ul>
+                <li><strong>Event Listeners:</strong> Remove all event listeners on disconnect</li>
+                <li><strong>Timers & Intervals:</strong> Clear all timers and intervals when connections close</li>
+                <li><strong>Collections:</strong> Remove entries from Maps/Arrays when no longer needed</li>
+                <li><strong>Circular References:</strong> Avoid or break circular object references</li>
+                <li><strong>Closures:</strong> Be careful with closures capturing large objects</li>
+                <li><strong>Global References:</strong> Clean up global handlers that reference specific sockets</li>
+            </ul>
+            
+            <div class="code-block">
+                <div>// Example fix pattern:</div>
+                <div>handleDisconnect(client: Socket) {</div>
+                <div>  const session = this.userSessions.get(client.id);</div>
+                <div>  if (session) {</div>
+                <div>    // Clear all timers and intervals</div>
+                <div>    session.timers.forEach(timer => clearTimeout(timer));</div>
+                <div>    session.intervals.forEach(interval => clearInterval(interval));</div>
+                <div>    </div>
+                <div>    // Remove event listeners</div>
+                <div>    session.listeners.forEach(({event, callback}) => {</div>
+                <div>      client.removeListener(event, callback);</div>
+                <div>    });</div>
+                <div>    </div>
+                <div>    // Remove from collections</div>
+                <div>    this.userSessions.delete(client.id);</div>
+                <div>  }</div>
+                <div>}</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let connectionCount = 0;
+        const additionalSockets = [];
+
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('log');
+        const memoryStatsEl = document.getElementById('memoryStats');
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${timestamp}] ${message}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                statusEl.textContent = 'Status: Connected';
+                statusEl.className = 'connected';
+            } else {
+                statusEl.textContent = 'Status: Disconnected';
+                statusEl.className = 'disconnected';
+            }
+            
+            // Update button states
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('subscribeBtn').disabled = !connected;
+            document.getElementById('heavyComputationBtn').disabled = !connected;
+            document.getElementById('memoryStatsBtn').disabled = !connected;
+            document.getElementById('forceGcBtn').disabled = !connected;
+        }
+
+        function connect() {
+            if (socket) return;
+
+            socket = io('http://localhost:3000', {
+                auth: {
+                    userId: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                }
+            });
+
+            socket.on('connect', () => {
+                log(`Connected with ID: ${socket.id}`);
+                updateConnectionStatus(true);
+                connectionCount++;
+            });
+
+            socket.on('disconnect', () => {
+                log('Disconnected from server');
+                updateConnectionStatus(false);
+                socket = null;
+            });
+
+            socket.on('heartbeat', (data) => {
+                log(`Heartbeat received: ${data.timestamp}`);
+            });
+
+            socket.on('user_updates', (data) => {
+                log(`User updates received: ${data.updates.length} updates`);
+            });
+
+            socket.on('computation_result', (data) => {
+                log(`Computation result: iteration ${data.iteration}, size ${data.size}`);
+            });
+
+            socket.on('memory_stats', (stats) => {
+                memoryStatsEl.innerHTML = `
+                    <strong>Memory Usage:</strong><br>
+                    RSS: ${stats.memoryUsage.rss} MB<br>
+                    Heap Used: ${stats.memoryUsage.heapUsed} MB<br>
+                    Heap Total: ${stats.memoryUsage.heapTotal} MB<br>
+                    External: ${stats.memoryUsage.external} MB<br>
+                    <br>
+                    <strong>Server State:</strong><br>
+                    Active Sessions: ${stats.activeSessions}<br>
+                    Message History: ${stats.messageHistoryLength}<br>
+                    Global Handlers: ${stats.globalHandlers}<br>
+                `;
+                log(`Memory stats updated - Heap: ${stats.memoryUsage.heapUsed}MB, Sessions: ${stats.activeSessions}`);
+            });
+
+            socket.on('gc_result', (result) => {
+                if (result.error) {
+                    log(`GC Error: ${result.error}`);
+                } else {
+                    log(`GC Complete - Before: ${result.before}MB, After: ${result.after}MB, Freed: ${result.freed}MB`);
+                }
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`Connection error: ${error.message}`);
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+            }
+        }
+
+        function createMultipleConnections() {
+            log('Creating 10 additional connections...');
+            
+            for (let i = 0; i < 10; i++) {
+                const additionalSocket = io('http://localhost:3000', {
+                    auth: {
+                        userId: `multi_user_${Date.now()}_${i}`
+                    }
+                });
+
+                additionalSocket.on('connect', () => {
+                    log(`Additional connection ${i + 1} established: ${additionalSocket.id}`);
+                    connectionCount++;
+                });
+
+                additionalSocket.on('disconnect', () => {
+                    log(`Additional connection ${i + 1} disconnected`);
+                });
+
+                additionalSockets.push(additionalSocket);
+
+                // Simulate some activity on each connection
+                setTimeout(() => {
+                    additionalSocket.emit('subscribe_updates', {
+                        userId: `multi_user_${Date.now()}_${i}`,
+                        preferences: { notifications: true }
+                    });
+                }, 1000 + (i * 100));
+            }
+        }
+
+        function subscribeToUpdates() {
+            if (!socket) return;
+            
+            socket.emit('subscribe_updates', {
+                userId: socket.auth.userId,
+                preferences: { notifications: true, frequency: 'high' }
+            });
+            log('Subscribed to updates');
+        }
+
+        function triggerHeavyComputation() {
+            if (!socket) return;
+            
+            const iterations = 500; // This will create many closures
+            socket.emit('heavy_computation', { iterations });
+            log(`Triggered heavy computation with ${iterations} iterations`);
+        }
+
+        function getMemoryStats() {
+            if (!socket) return;
+            socket.emit('get_memory_stats');
+        }
+
+        function forceGarbageCollection() {
+            if (!socket) return;
+            socket.emit('force_gc');
+            log('Requested garbage collection');
+        }
+
+        // Event listeners
+        document.getElementById('connectBtn').addEventListener('click', connect);
+        document.getElementById('disconnectBtn').addEventListener('click', disconnect);
+        document.getElementById('multiConnectBtn').addEventListener('click', createMultipleConnections);
+        document.getElementById('subscribeBtn').addEventListener('click', subscribeToUpdates);
+        document.getElementById('heavyComputationBtn').addEventListener('click', triggerHeavyComputation);
+        document.getElementById('memoryStatsBtn').addEventListener('click', getMemoryStats);
+        document.getElementById('forceGcBtn').addEventListener('click', forceGarbageCollection);
+
+        // Auto-refresh memory stats every 5 seconds when connected
+        setInterval(() => {
+            if (socket && socket.connected) {
+                getMemoryStats();
+            }
+        }, 5000);
+
+        log('Memory Leak Challenge Client loaded. Click Connect to start.');
+    </script>
+</body>
+</html>

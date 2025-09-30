@@ -2,6 +2,7 @@ import { Controller, Get, Res } from '@nestjs/common';
 import { AppService } from './app.service';
 import { InternalService } from './internal.service';
 import type { Response } from 'express';
+import * as path from 'path';
 
 @Controller()
 export class AppController {
@@ -35,5 +36,13 @@ export class AppController {
   @Get('backpressure-stream')
   streamBackpressure(@Res() res: Response): void {
     this.internalService.streamBackpressure(res);
+  }
+
+  /**
+   * Serve the memory leak challenge test page
+   */
+  @Get('memory-leak-challenge')
+  serveMemoryLeakChallenge(@Res() res: Response): void {
+    res.sendFile(path.join(process.cwd(), 'public', 'memory-leak-test.html'));
   }
 }
