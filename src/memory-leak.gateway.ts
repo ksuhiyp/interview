@@ -30,18 +30,18 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
 
   private readonly logger = new Logger(MemoryLeakGateway.name);
   
-  // MEMORY LEAK PATTERN 1: Growing collections without cleanup
+  // These collections store data for connected clients and system events
   private userSessions = new Map<string, UserSession>();
   private globalEventHandlers: Function[] = [];
   private messageHistory: Array<{ timestamp: Date; message: string; userId: string }> = [];
 
-  // MEMORY LEAK PATTERN 2: Static timers that reference instance methods
+  // Background timer for periodic operations
   private globalTimer: NodeJS.Timeout;
 
   constructor() {
-    // MEMORY LEAK PATTERN 3: Constructor timer that never gets cleared
+    // Start background operations when the gateway initializes
     this.globalTimer = setInterval(() => {
-      // This creates a closure that holds reference to 'this'
+      // Regular maintenance operation that processes data
       this.performHeavyOperation();
     }, 5000);
   }
@@ -49,7 +49,7 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
     
-    // MEMORY LEAK PATTERN 4: Creating large buffers per connection
+    // Allocate working memory for this connection's data processing
     const largeBuffer = Buffer.alloc(1024 * 1024); // 1MB per connection
     largeBuffer.fill('x');
 
@@ -64,18 +64,18 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
 
     this.userSessions.set(client.id, session);
 
-    // MEMORY LEAK PATTERN 5: Event listeners that accumulate
+    // Set up heartbeat mechanism for connection monitoring
     const heartbeatCallback = () => {
       client.emit('heartbeat', { timestamp: Date.now() });
     };
     
-    // Adding listeners without proper cleanup tracking
+    // Register event handlers for this client
     client.on('pong', heartbeatCallback);
     session.listeners.push({ event: 'pong', callback: heartbeatCallback });
 
-    // MEMORY LEAK PATTERN 6: Timers per connection without cleanup
+    // Start periodic tasks for this connection
     const connectionTimer = setInterval(() => {
-      // Keep adding to message history without bounds
+      // Log activity and maintain connection history
       this.messageHistory.push({
         timestamp: new Date(),
         message: `Ping from ${client.id}`,
@@ -83,16 +83,16 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
       });
       
       if (this.messageHistory.length > 10000) {
-        // Naive cleanup that doesn't actually help much
+        // Basic cleanup when history gets too large
         this.messageHistory = this.messageHistory.slice(-5000);
       }
     }, 1000);
 
     session.timers.push(connectionTimer);
 
-    // MEMORY LEAK PATTERN 7: Global handlers that reference specific sockets
+    // Register global event handler for broadcasting
     const globalHandler = (data: any) => {
-      // This function captures the client in closure
+      // Handler that can send data to this specific client
       client.emit('global_broadcast', data);
     };
     this.globalEventHandlers.push(globalHandler);
@@ -106,17 +106,16 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
     const session = this.userSessions.get(client.id);
     
     if (session) {
-      // MEMORY LEAK PATTERN 8: Incomplete cleanup
-      // Only clearing some timers, not all
+      // Clean up some resources when client disconnects
+      // TODO: Ensure all timers and intervals are properly cleared
       if (session.timers.length > 0) {
-        clearInterval(session.timers[0]); // Only clearing first timer!
-        // Missing: clear all timers and intervals
+        clearInterval(session.timers[0]); // Clear the first timer
+        // Note: Consider if all timers and intervals need cleanup
       }
       
-      // MEMORY LEAK PATTERN 9: Not removing from collections
-      // Missing: this.userSessions.delete(client.id);
-      // Missing: removing from globalEventHandlers
-      // Missing: removing event listeners
+      // TODO: Review what other cleanup might be needed
+      // Consider: session data, event listeners, global handlers
+      // Hint: What data structures are we adding to during connection?
     }
 
     this.logMemoryUsage('After disconnection');
@@ -130,14 +129,14 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
     const session = this.userSessions.get(client.id);
     if (!session) return;
 
-    // MEMORY LEAK PATTERN 10: Creating new intervals on each subscription
+    // Create a periodic update mechanism for this subscription
     const updateInterval = setInterval(() => {
       const updates = this.generateFakeUpdates(data.userId);
       client.emit('user_updates', updates);
     }, 2000);
 
-    // Should add to session.intervals for cleanup, but we "forget" to do this
-    // session.intervals.push(updateInterval);
+    // Note: Consider how to track this interval for cleanup later
+    // TODO: Think about where this interval should be stored for proper cleanup
 
     return { status: 'subscribed', userId: data.userId };
   }
@@ -147,12 +146,12 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
     @MessageBody() data: { iterations: number },
     @ConnectedSocket() client: Socket,
   ) {
-    // MEMORY LEAK PATTERN 11: Creating closures in loops with large data
+    // Process data in multiple iterations with callback functions
     const results: Array<() => void> = [];
-    const largeData = Buffer.alloc(100 * 1024); // 100KB
+    const largeData = Buffer.alloc(100 * 1024); // 100KB working data
 
     for (let i = 0; i < (data.iterations || 100); i++) {
-      // Each function captures largeData and i
+      // Create processing functions that will handle the data
       results.push(() => {
         const processed = Buffer.concat([largeData, Buffer.from(`iteration_${i}`)]);
         client.emit('computation_result', { 
@@ -163,11 +162,11 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
       });
     }
 
-    // Execute all at once, keeping references
+    // Execute all processing functions
     results.forEach(fn => fn());
     
-    // MEMORY LEAK PATTERN 12: Storing results without bounds
-    // In a real app, this might be a cache that grows indefinitely
+    // Keep a record of the computation in our message history
+    // Consider: Should this history have limits? How does it grow over time?
     this.messageHistory.push({
       timestamp: new Date(),
       message: `Heavy computation completed: ${results.length} operations`,
@@ -217,14 +216,14 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
   }
 
   private performHeavyOperation() {
-    // MEMORY LEAK PATTERN 13: Creating temporary large objects frequently
+    // Periodic maintenance task that processes system data
     const tempData = new Array(10000).fill(0).map((_, i) => ({
       id: i,
       data: Buffer.alloc(1024).toString('hex'),
       timestamp: Date.now(),
     }));
 
-    // Simulate some processing
+    // Process the temporary data
     tempData.forEach(item => {
       item.data = item.data.slice(0, 500);
     });
@@ -233,7 +232,7 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
   }
 
   private generateFakeUpdates(userId: string) {
-    // MEMORY LEAK PATTERN 14: Creating new objects with references to session data
+    // Find the user session to include relevant data in updates
     const session = Array.from(this.userSessions.values()).find(s => s.userId === userId);
     
     return {
@@ -241,7 +240,7 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
       updates: new Array(50).fill(0).map((_, i) => ({
         id: i,
         message: `Update ${i} for ${userId}`,
-        sessionData: session, // This creates a circular reference!
+        sessionData: session, // Include session context in the update
         timestamp: Date.now(),
       })),
     };
