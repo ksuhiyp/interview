@@ -6,7 +6,10 @@ import * as path from 'path';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService, private readonly internalService: InternalService) { }
+  constructor(
+    private readonly appService: AppService,
+    private readonly internalService: InternalService,
+  ) {}
 
   @Get()
   getHello(): string {

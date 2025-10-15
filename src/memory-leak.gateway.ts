@@ -24,16 +24,22 @@ interface UserSession {
     origin: '*',
   },
 })
-export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class MemoryLeakGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(MemoryLeakGateway.name);
-  
+
   // These collections store data for connected clients and system events
   private userSessions = new Map<string, UserSession>();
   private globalEventHandlers: Function[] = [];
-  private messageHistory: Array<{ timestamp: Date; message: string; userId: string }> = [];
+  private messageHistory: Array<{
+    timestamp: Date;
+    message: string;
+    userId: string;
+  }> = [];
 
   // Background timer for periodic operations
   private globalTimer: NodeJS.Timeout;
@@ -48,7 +54,7 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
 
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
-    
+
     // Allocate working memory for this connection's data processing
     const largeBuffer = Buffer.alloc(1024 * 1024); // 1MB per connection
     largeBuffer.fill('x');
@@ -68,7 +74,7 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
     const heartbeatCallback = () => {
       client.emit('heartbeat', { timestamp: Date.now() });
     };
-    
+
     // Register event handlers for this client
     client.on('pong', heartbeatCallback);
     session.listeners.push({ event: 'pong', callback: heartbeatCallback });
@@ -81,7 +87,7 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
         message: `Ping from ${client.id}`,
         userId: session.userId,
       });
-      
+
       if (this.messageHistory.length > 10000) {
         // Basic cleanup when history gets too large
         this.messageHistory = this.messageHistory.slice(-5000);
@@ -102,9 +108,9 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
-    
+
     const session = this.userSessions.get(client.id);
-    
+
     if (session) {
       // Clean up some resources when client disconnects
       // TODO: Ensure all timers and intervals are properly cleared
@@ -112,7 +118,7 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
         clearInterval(session.timers[0]); // Clear the first timer
         // Note: Consider if all timers and intervals need cleanup
       }
-      
+
       // TODO: Review what other cleanup might be needed
       // Consider: session data, event listeners, global handlers
       // Hint: What data structures are we adding to during connection?
@@ -153,18 +159,21 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
     for (let i = 0; i < (data.iterations || 100); i++) {
       // Create processing functions that will handle the data
       results.push(() => {
-        const processed = Buffer.concat([largeData, Buffer.from(`iteration_${i}`)]);
-        client.emit('computation_result', { 
-          iteration: i, 
+        const processed = Buffer.concat([
+          largeData,
+          Buffer.from(`iteration_${i}`),
+        ]);
+        client.emit('computation_result', {
+          iteration: i,
           size: processed.length,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       });
     }
 
     // Execute all processing functions
-    results.forEach(fn => fn());
-    
+    results.forEach((fn) => fn());
+
     // Keep a record of the computation in our message history
     // Consider: Should this history have limits? How does it grow over time?
     this.messageHistory.push({
@@ -202,15 +211,15 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
       const before = process.memoryUsage();
       global.gc();
       const after = process.memoryUsage();
-      
+
       client.emit('gc_result', {
         before: Math.round(before.heapUsed / 1024 / 1024),
         after: Math.round(after.heapUsed / 1024 / 1024),
         freed: Math.round((before.heapUsed - after.heapUsed) / 1024 / 1024),
       });
     } else {
-      client.emit('gc_result', { 
-        error: 'GC not exposed. Start with --expose-gc flag' 
+      client.emit('gc_result', {
+        error: 'GC not exposed. Start with --expose-gc flag',
       });
     }
   }
@@ -224,17 +233,21 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
     }));
 
     // Process the temporary data
-    tempData.forEach(item => {
+    tempData.forEach((item) => {
       item.data = item.data.slice(0, 500);
     });
 
-    this.logger.debug(`Heavy operation completed with ${tempData.length} items`);
+    this.logger.debug(
+      `Heavy operation completed with ${tempData.length} items`,
+    );
   }
 
   private generateFakeUpdates(userId: string) {
     // Find the user session to include relevant data in updates
-    const session = Array.from(this.userSessions.values()).find(s => s.userId === userId);
-    
+    const session = Array.from(this.userSessions.values()).find(
+      (s) => s.userId === userId,
+    );
+
     return {
       userId,
       updates: new Array(50).fill(0).map((_, i) => ({
@@ -250,8 +263,8 @@ export class MemoryLeakGateway implements OnGatewayConnection, OnGatewayDisconne
     const usage = process.memoryUsage();
     this.logger.log(
       `${context} - Heap: ${Math.round(usage.heapUsed / 1024 / 1024)}MB, ` +
-      `Sessions: ${this.userSessions.size}, ` +
-      `History: ${this.messageHistory.length}`
+        `Sessions: ${this.userSessions.size}, ` +
+        `History: ${this.messageHistory.length}`,
     );
   }
 }
