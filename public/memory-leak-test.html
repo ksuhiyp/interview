@@ -149,39 +149,6 @@
 
         <h3>Event Log</h3>
         <div id="log" class="log"></div>
-
-        <div class="fix-section">
-            <h2>✅ Fix Guidelines</h2>
-            <p>Common memory leak patterns to look for and fix:</p>
-            <ul>
-                <li><strong>Event Listeners:</strong> Remove all event listeners on disconnect</li>
-                <li><strong>Timers & Intervals:</strong> Clear all timers and intervals when connections close</li>
-                <li><strong>Collections:</strong> Remove entries from Maps/Arrays when no longer needed</li>
-                <li><strong>Circular References:</strong> Avoid or break circular object references</li>
-                <li><strong>Closures:</strong> Be careful with closures capturing large objects</li>
-                <li><strong>Global References:</strong> Clean up global handlers that reference specific sockets</li>
-            </ul>
-            
-            <div class="code-block">
-                <div>// Example fix pattern:</div>
-                <div>handleDisconnect(client: Socket) {</div>
-                <div>  const session = this.userSessions.get(client.id);</div>
-                <div>  if (session) {</div>
-                <div>    // Clear all timers and intervals</div>
-                <div>    session.timers.forEach(timer => clearTimeout(timer));</div>
-                <div>    session.intervals.forEach(interval => clearInterval(interval));</div>
-                <div>    </div>
-                <div>    // Remove event listeners</div>
-                <div>    session.listeners.forEach(({event, callback}) => {</div>
-                <div>      client.removeListener(event, callback);</div>
-                <div>    });</div>
-                <div>    </div>
-                <div>    // Remove from collections</div>
-                <div>    this.userSessions.delete(client.id);</div>
-                <div>  }</div>
-                <div>}</div>
-            </div>
-        </div>
     </div>
 
     <script>
