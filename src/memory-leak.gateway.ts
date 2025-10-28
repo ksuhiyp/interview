@@ -111,19 +111,6 @@ export class MemoryLeakGateway
 
     const session = this.userSessions.get(client.id);
 
-    if (session) {
-      // Clean up some resources when client disconnects
-      // TODO: Ensure all timers and intervals are properly cleared
-      if (session.timers.length > 0) {
-        clearInterval(session.timers[0]); // Clear the first timer
-        // Note: Consider if all timers and intervals need cleanup
-      }
-
-      // TODO: Review what other cleanup might be needed
-      // Consider: session data, event listeners, global handlers
-      // Hint: What data structures are we adding to during connection?
-    }
-
     this.logMemoryUsage('After disconnection');
   }
 
